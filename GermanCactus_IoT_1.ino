@@ -1,5 +1,7 @@
 #include "DHT.h"
 #include <Ethernet.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
 const String APIKEY = "97f31f8321a8df31ed5efbb4f3e22072d5732d1b5d075f5d3ee85f74115d1716";
 const String DEVICE = "cactusDevice@vrxfile.vrxfile";
@@ -26,6 +28,10 @@ long timer_carriots = 0;
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
+#define ONE_WIRE_BUS 8
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature ds_sensors(&oneWire);
+
 #define LightSensorPIN A1
 #define TemperatureSensorPIN A2
 #define MoistureSensorPIN A3
@@ -34,8 +40,8 @@ DHT dht(DHTPIN, DHTTYPE);
 
 float h1 = 0;
 float t1 = 0;
-float hic1 = 0;
 float t2 = 0;
+float t3 = 0;
 float light1 = 0;
 float moisture1 = 0;
 
@@ -69,6 +75,9 @@ void setup()
 
   // DHT11
   dht.begin();
+
+  // DS18B20
+  ds_sensors.begin();
 }
 
 // Main loop
@@ -78,8 +87,22 @@ void loop()
   if (millis() > timer_main + SERVER_UPDATE_TIME)
   {
     // Read data from sensors
-    readDHT();
-    readANALOG();
+    // DHT11
+    h1 = dht.readHumidity();
+    t1 = dht.readTemperature();
+    if (isnan(h1) || isnan(t1)) {
+      Serial.println("Failed to read from DHT sensor!");
+    }
+    // Analog sensors
+    float sens1 = analogRead(LightSensorPIN);
+    float sens2 = analogRead(TemperatureSensorPIN);
+    float sens3 = analogRead(MoistureSensorPIN);
+    t2 = sens2 / 1023.00 * 5 * 100.00 * 1.2;
+    light1 = sens1 / 1023.00 * 100.00;
+    moisture1 = sens3 / 1023.00 * 100.00;
+    // DS18B20
+    ds_sensors.requestTemperatures();
+    t3 = ds_sensors.getTempCByIndex(0);
     // Print data from sensors
     printAllSenors();
     // Send data to servser
@@ -99,6 +122,7 @@ void sendCarriotsStream()
     {
       Serial.println("Sending data to Carriots server...\n");
 
+      // Calculating packet size
       int thisLength = 0;
       String json_data = "";
       json_data = String("{\"protocol\":\"v2\",\"device\":\""); thisLength = thisLength + json_data.length();
@@ -108,6 +132,8 @@ void sendCarriotsStream()
       json_data = String("\"" + String(t1, 2) + "\","); thisLength = thisLength + json_data.length();
       json_data = String("\"temperature2\":"); thisLength = thisLength + json_data.length();
       json_data = String("\"" + String(t2, 2) + "\","); thisLength = thisLength + json_data.length();
+      json_data = String("\"temperature3\":"); thisLength = thisLength + json_data.length();
+      json_data = String("\"" + String(t3, 2) + "\","); thisLength = thisLength + json_data.length();
       json_data = String("\"humidity1\":"); thisLength = thisLength + json_data.length();
       json_data = String("\"" + String(h1, 2) + "\","); thisLength = thisLength + json_data.length();
       json_data = String("\"light1\":"); thisLength = thisLength + json_data.length();
@@ -115,24 +141,6 @@ void sendCarriotsStream()
       json_data = String("\"moisture1\":"); thisLength = thisLength + json_data.length();
       json_data = String("\"" + String(moisture1, 2) + "\"}}"); thisLength = thisLength + json_data.length();
 
-      /*
-        String json_data = "{\"protocol\":\"v2\",\"device\":\"";
-        json_data = json_data + DEVICE;
-        json_data = json_data + "\",\"at\":\"now\",\"data\":{";
-        json_data = json_data + "\"temperature1\":";
-        json_data = json_data + "\"" + String(t1, 2) + "\",";
-        json_data = json_data + "\"temperature2\":";
-        json_data = json_data + "\"" + String(t2, 2) + "\",";
-        json_data = json_data + "\"humidity1\":";
-        json_data = json_data + "\"" + String(h1, 2) + "\",";
-        json_data = json_data + "\"light1\":";
-        json_data = json_data + "\"" + String(light1, 2) + "\",";
-        json_data = json_data + "\"moisture1\":";
-        json_data = json_data + "\"" + String(moisture1, 2) + "\"}}";
-      */
-
-      //Serial.println("Data to be send:");
-      //Serial.println(json_data);
       Serial.println("Size of data: " + String(thisLength));
       Serial.println();
 
@@ -157,6 +165,8 @@ void sendCarriotsStream()
       client.print("\"" + String(t1, 2) + "\",");
       client.print("\"temperature2\":");
       client.print("\"" + String(t2, 2) + "\",");
+      client.print("\"temperature3\":");
+      client.print("\"" + String(t3, 2) + "\",");
       client.print("\"humidity1\":");
       client.print("\"" + String(h1, 2) + "\",");
       client.print("\"light1\":");
@@ -181,33 +191,6 @@ void sendCarriotsStream()
   }
 }
 
-// Read DHT sensors
-void readDHT()
-{
-  // DHT11
-  h1 = dht.readHumidity();
-  t1 = dht.readTemperature();
-  if (isnan(h1) || isnan(t1)) {
-    Serial.println("Failed to read from DHT sensor!");
-  }
-  else
-  {
-    hic1 = dht.computeHeatIndex(t1, h1, false);
-  }
-}
-
-// Read analog sensors
-void readANALOG()
-{
-  // Analog sensors
-  float sens1 = analogRead(LightSensorPIN);
-  float sens2 = analogRead(TemperatureSensorPIN);
-  float sens3 = analogRead(MoistureSensorPIN);
-  t2 = sens2 / 1023.00 * 5 * 100.00 * 1.2;
-  light1 = sens1 / 1023.00 * 100.00;
-  moisture1 = sens3 / 1023.00 * 100.00;
-}
-
 // Print sensors data to terminal
 void printAllSenors()
 {
@@ -217,12 +200,12 @@ void printAllSenors()
   Serial.print("Temperature2: ");
   Serial.print(t2);
   Serial.println(" *C");
+  Serial.print("Temperature3: ");
+  Serial.print(t3);
+  Serial.println(" *C");
   Serial.print("Humidity1: ");
   Serial.print(h1);
   Serial.println(" %");
-  Serial.print("Heat index1: ");
-  Serial.print(hic1);
-  Serial.println(" *C");
   Serial.print("Light detection : ");
   Serial.print(light1);
   Serial.println(" %");
