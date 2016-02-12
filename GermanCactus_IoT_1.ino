@@ -1,4 +1,5 @@
 #include "DHT.h"
+#include "pitches.h"
 #include <Ethernet.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -44,6 +45,15 @@ float t2 = 0;
 float t3 = 0;
 float light1 = 0;
 float moisture1 = 0;
+
+#define BUZZERPIN 5
+
+int melody[] = {
+  NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
+};
+int noteDurations[] = {
+  4, 8, 8, 4, 4, 4, 4, 4
+};
 
 // Main setup
 void setup()
@@ -103,6 +113,16 @@ void loop()
     // DS18B20
     ds_sensors.requestTemperatures();
     t3 = ds_sensors.getTempCByIndex(0);
+    // If moisture less than 30, play music
+    if (moisture1 <= 30) {
+      for (int thisNote = 0; thisNote < 8; thisNote++) {
+        int noteDuration = 1000 / noteDurations[thisNote];
+        tone(BUZZERPIN, melody[thisNote], noteDuration);
+        int pauseBetweenNotes = noteDuration * 1.30;
+        delay(pauseBetweenNotes);
+        noTone(BUZZERPIN);
+      }
+    }
     // Print data from sensors
     printAllSenors();
     // Send data to servser
