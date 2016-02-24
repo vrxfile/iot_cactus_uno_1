@@ -1,5 +1,6 @@
 #include "DHT.h"
 #include "pitches.h"
+#include "LedControl.h"
 #include <Ethernet.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -48,18 +49,64 @@ float moisture1 = 0;
 
 #define BUZZERPIN 5
 
-int melody[] = {
+const int melody[] = {
   NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
 };
-int noteDurations[] = {
+const int noteDurations[] = {
   4, 8, 8, 4, 4, 4, 4, 4
 };
+
+/*
+  LED Matrix
+  pin A4 is connected to the DataIn
+  pin A5 is connected to the CLK
+  pin D7 is connected to LOAD(CS)
+*/
+
+//LedControl lc = LedControl(A4, A5, 7, 1);
+
+/*
+  // Smiles for LED matrix
+  const byte PROGMEM smile_sad[8] =
+  {
+  B00111100,
+  B01000010,
+  B10100101,
+  B10000001,
+  B10011001,
+  B10100101,
+  B01000010,
+  B00111100
+  };
+  const byte PROGMEM smile_neutral[8] =
+  {
+  B00111100,
+  B01000010,
+  B10100101,
+  B10000001,
+  B10000001,
+  B10111101,
+  B01000010,
+  B00111100
+  };
+  const byte PROGMEM smile_happy[8] =
+  {
+  B00111100,
+  B01000010,
+  B10100101,
+  B10000001,
+  B10100101,
+  B10011001,
+  B01000010,
+  B00111100
+  };
+*/
 
 // Main setup
 void setup()
 {
   // Serial port
-  Serial.begin(19200);
+  Serial.begin(9600);
   Serial.println("/* Carriots data client by Rostislav Varzar */\n");
 
   // Init analog PINS
@@ -88,6 +135,13 @@ void setup()
 
   // DS18B20
   ds_sensors.begin();
+
+  // LED matrix
+  /*
+    lc.shutdown(0, false);
+    lc.setIntensity(0, 8);
+    lc.clearDisplay(0);
+  */
 }
 
 // Main loop
@@ -114,7 +168,17 @@ void loop()
     ds_sensors.requestTemperatures();
     t3 = ds_sensors.getTempCByIndex(0);
     // If moisture less than 30, play music
-    if (moisture1 <= 30) {
+    if (moisture1 <= 10) {
+      /*
+        lc.setRow(0, 0, smile_sad[0]);
+        lc.setRow(0, 1, smile_sad[1]);
+        lc.setRow(0, 2, smile_sad[2]);
+        lc.setRow(0, 3, smile_sad[3]);
+        lc.setRow(0, 4, smile_sad[4]);
+        lc.setRow(0, 5, smile_sad[5]);
+        lc.setRow(0, 6, smile_sad[6]);
+        lc.setRow(0, 7, smile_sad[7]);
+      */
       for (int thisNote = 0; thisNote < 8; thisNote++) {
         int noteDuration = 1000 / noteDurations[thisNote];
         tone(BUZZERPIN, melody[thisNote], noteDuration);
@@ -122,6 +186,30 @@ void loop()
         delay(pauseBetweenNotes);
         noTone(BUZZERPIN);
       }
+    }
+    if ((moisture1 > 10) && (moisture1 <= 30)) {
+      /*
+        lc.setRow(0, 0, smile_neutral[0]);
+        lc.setRow(0, 1, smile_neutral[1]);
+        lc.setRow(0, 2, smile_neutral[2]);
+        lc.setRow(0, 3, smile_neutral[3]);
+        lc.setRow(0, 4, smile_neutral[4]);
+        lc.setRow(0, 5, smile_neutral[5]);
+        lc.setRow(0, 6, smile_neutral[6]);
+        lc.setRow(0, 7, smile_neutral[7]);
+      */
+    }
+    if (moisture1 > 30) {
+      /*
+        lc.setRow(0, 0, smile_happy[0]);
+        lc.setRow(0, 1, smile_happy[1]);
+        lc.setRow(0, 2, smile_happy[2]);
+        lc.setRow(0, 3, smile_happy[3]);
+        lc.setRow(0, 4, smile_happy[4]);
+        lc.setRow(0, 5, smile_happy[5]);
+        lc.setRow(0, 6, smile_happy[6]);
+        lc.setRow(0, 7, smile_happy[7]);
+      */
     }
     // Print data from sensors
     printAllSenors();
